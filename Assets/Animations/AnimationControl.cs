@@ -11,8 +11,6 @@ public class AnimationControl : MonoBehaviour
     public GameObject tracked_object;
     public Animator _animator;
 
-    public float mod = 30.0f;
-
     [Header("Tail Components")]
 
     public float tail_t;
@@ -27,15 +25,15 @@ public class AnimationControl : MonoBehaviour
     float tail_segment_delay = 1.62f;
 
 
-    [Header("Eyelids")]
-    public float blink_timer;
-    public float blink_interval;
+    //[Header("Eyelids")]
+    float blink_timer;
+    float blink_interval;
 
 
     [Header("Wings")]
-    public float wing_t;
+    float wing_t;
     public List<GameObject> wing_bones;
-    float wing_speed;
+    public float wing_speed;
 
 
     // Start is called before the first frame update
@@ -76,7 +74,7 @@ public class AnimationControl : MonoBehaviour
 
         for(int i = 0; i < wing_bones.Count; i++){
             GameObject bone = wing_bones[i];
-            float wing_rotation = (10.0f * Mathf.Sin(wing_t) + mod);
+            float wing_rotation = (10.0f * Mathf.Sin(wing_t) - 30.0f);
             bone.transform.localEulerAngles = new Vector3(wing_rotation, bone.transform.localEulerAngles.y, bone.transform.localEulerAngles.z);
         }
     }
@@ -108,6 +106,7 @@ public class AnimationControl : MonoBehaviour
             _animator.SetTrigger("doBlink");
         }
 
-        //_animator.Set
+        //_animator.SetTrigger("closeEyes");
+        //_animator.SetTrigger("openEyes");
     }
 }
