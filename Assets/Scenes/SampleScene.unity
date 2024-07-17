@@ -448,7 +448,7 @@ Transform:
   m_GameObject: {fileID: 1267123606}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.225, y: -0.9083169, z: 2.533}
+  m_LocalPosition: {x: 0.225, y: 0.702, z: 2.533}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -693,7 +693,7 @@ Light:
   m_BounceIntensity: 1
   m_ColorTemperature: 6570
   m_UseColorTemperature: 0
-  m_BoundingSphereOverride: {x: 0, y: 0, z: 2.369356e-38, w: -1.253e-42}
+  m_BoundingSphereOverride: {x: 1.02e-43, y: 1.1e-44, z: 2.431e-41, w: 3.946e-42}
   m_UseBoundingSphereOverride: 0
   m_UseViewFrustumForShadowCasterCull: 1
   m_ShadowRadius: 0
@@ -810,7 +810,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 889916789428213877, guid: 12b9e18d4c68c8245b46da952b881488, type: 3}
       propertyPath: drawBones
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 889916789428213877, guid: 12b9e18d4c68c8245b46da952b881488, type: 3}
       propertyPath: m_Transforms.Array.size
