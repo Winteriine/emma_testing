@@ -14,7 +14,7 @@ public class AnimationControl : MonoBehaviour
     public float tail_t;
     public List<GameObject> tail_bones;
 
-    public float tail_excitedness = 0.5f;
+    public float tail_excitedness;
 
     [Header("Eyelids")]
     public float blink_timer;
@@ -24,12 +24,13 @@ public class AnimationControl : MonoBehaviour
     public float wing_t;
     public List<GameObject> wing_bones;
     public float wing_speed = 0.01f;
-    public float wing_mod = -30.0f;
+    public float wing_mod_R = -30.0f;
+    public float wing_mod_L = -30.0f;
 
     [Header("Contact")]
     public List<GameObject> horn_bones;
     public float[] part_lengths; //not something i wanna calc repeatedly. note that this is hardcoded which is annoying
-    public GameObject contactTarget;
+    public List<GameObject> contact_targets;
 
     [Header("Tracking")]
     public Transform headBone;
@@ -73,10 +74,9 @@ public class AnimationControl : MonoBehaviour
         part_lengths[0] = Vector3.Distance(GameObject.Find("Armature/Base/Tail.1/Tail.2").transform.position, GameObject.Find("Armature/Base/Tail.1/Tail.2/Tail.2_end").transform.position);
         part_lengths[1] = Vector3.Distance(GameObject.Find("Armature/Base/Ear.1.L").transform.position, GameObject.Find("Armature/Base/Ear.1.L/Ear.1.L_end").transform.position);
         part_lengths[2] = Vector3.Distance(GameObject.Find("Armature/Base/Horn.R").transform.position, GameObject.Find("Armature/Base/Horn.R/Horn.R_end").transform.position);
-        
-        // UNCOMMENT IF ON MAIN PROJECT ITS JUST BROKEN FOR ME
-        //turnTarget = Camera.main.transform.position;
-        //eyesTarget = turnTarget;
+
+        turnTarget = Camera.main.transform.position;
+        eyesTarget = turnTarget;
     }
 
     // Update is called once per frame
@@ -86,7 +86,7 @@ public class AnimationControl : MonoBehaviour
         MoveEyelids();
         MoveWings();
 
-        ContactFoldUpdate(); //must be after the other updates since its a post-effect
+        ContactFoldUpdate(); //must be after the other updates since its a post-effect on the other animations
     }
 
     void LateUpdate()
@@ -102,16 +102,20 @@ public class AnimationControl : MonoBehaviour
 
         for(int i = 0; i < wing_bones.Count; i++) {
             GameObject bone = wing_bones[i];
+            float wing_mod = (i == 0) ? wing_mod_R : wing_mod_L;
             float wing_rotation = (15.0f * Mathf.Sin(wing_t) + wing_mod);
             bone.transform.localEulerAngles = new Vector3(wing_rotation, bone.transform.localEulerAngles.y, bone.transform.localEulerAngles.z);
         }
 
         wing_t += wing_speed;
+
+        //TODO: update wing_speed procedurally based on the velocity/acceleration of the dragon's movement
+        // technically i need this to be two seperate wing_speeds for each wing but.... later problems
+        wing_speed = 0.02f;
     }
 
     void WagTail() {
-        // assume that all bones are at rotation z = 0 unless its the first one, which is z = 180.
-        // if this isnt the case we can fix it later
+
 
         // tail_excitedness = Mathf.Pow(Mathf.InverseLerp(tail_max_distance, tail_min_distance, target_distance), 2);
 
@@ -120,12 +124,17 @@ public class AnimationControl : MonoBehaviour
     
         for(int i = 0; i < tail_bones.Count; i++){
             GameObject bone = tail_bones[i];
+
+            // assume that all bones are at rotation z = 0 unless its the first one, which is z = 180. if this isnt the case we can fix it later
             float base_z = (i == 0) ? 180.0f : 0.0f ;
             float tail_rotation = (10.0f * tail_excitedness * Mathf.Sin(tail_t - (1.62f * i)));
             bone.transform.localEulerAngles = new Vector3(bone.transform.localEulerAngles.x, bone.transform.localEulerAngles.y, base_z + tail_rotation);
         }
 
         tail_t += tail_excitedness * 0.04f + 0.005f;
+
+        // TODO: update tail_excitedness based on certain stimuli
+        tail_excitedness = 0.75f;
     }
 
     void MoveEyelids() {
@@ -200,38 +209,87 @@ public class AnimationControl : MonoBehaviour
     }
 
     void ContactFoldUpdate() {
-        //TODO: fix broken animation updaters bc theyre currently not autoupdating in the other functions
+        //TODO: fix broken animation updaters bc theyre currently not autoupdating in the other functions!! 
+        //TODO: make it update to the "smallest" values supplied by each object in the contact targets list
 
         //tail: index 0
-        float t = 0.0f;
+        float smallest_t = 1.0f;
+
+        float smallest_w_R = 1.0f;
+        float smallest_w_L = 1.0f;
+
+        float smallest_h_R = 1.0f;
+        float smallest_h_L = 1.0f;
+
+        foreach(GameObject target in contact_targets) {
+            
+            //calculate tail size
+            float t = 0.0f;
+            foreach (GameObject bone in tail_bones) {
+                float distance = Mathf.Min(Vector3.Distance(bone.transform.position, target.transform.position), part_lengths[0])/part_lengths[0];
+                t += distance;
+            }
+            t /= 2.0f;
+            smallest_t = Mathf.Min(smallest_t, t);
+
+            
+            //calculate wing fold R + L
+            for (int i = 0; i < wing_bones.Count; i++) {
+                //distance from base of bone
+                float w = Mathf.Min(Vector3.Distance(wing_bones[i].transform.position, target.transform.position), part_lengths[1]) / part_lengths[1];
+                //distance from tip of bone
+                w += Mathf.Min(Vector3.Distance(wing_bones[i].transform.GetChild(0).transform.position, target.transform.position), part_lengths[1]) / part_lengths[1];
+                //averaged
+                w /= 2.0f;
+
+                if (i == 0) {
+                    //right wing
+                    smallest_w_R = Mathf.Min(smallest_w_R, w);
+                } else {
+                    //left wing
+                    smallest_w_L = Mathf.Min(smallest_w_L, w);
+                }
+            }
+
+           //calculate horn squash
+            for (int i = 0; i < horn_bones.Count; i++) {
+                //distance from base of bone
+                float h = Mathf.Min(Vector3.Distance(horn_bones[i].transform.position, target.transform.position), part_lengths[2]) / part_lengths[2];
+                //distance from tip of bone
+                h += Mathf.Min(Vector3.Distance(horn_bones[i].transform.GetChild(0).transform.position, target.transform.position), part_lengths[2]) / part_lengths[2];
+                //averaged
+                h /= 2.0f;
+                //adjusted for scale
+                h = Mathf.Lerp(-1.0f, 1.0f, h);
+
+                if (i == 0) {
+                    //right horn
+                    smallest_h_R = Mathf.Min(smallest_h_R, h);
+                } else {
+                    //left horn
+                    smallest_h_L = Mathf.Min(smallest_h_L, h);
+                }
+            }
+
+        }
+
+        //update body parts
         foreach (GameObject bone in tail_bones) {
-            float distance = Mathf.Min(Vector3.Distance(bone.transform.position, contactTarget.transform.position), part_lengths[0]) /part_lengths[0];
-            t += distance;
+            bone.transform.localScale = new Vector3(smallest_t, smallest_t, smallest_t);
+            tail_excitedness = Mathf.Lerp(0, tail_excitedness, smallest_t);
         }
-        t /= 2.0f;
-        foreach (GameObject bone in tail_bones) {
-            bone.transform.localScale = new Vector3(t, t, t);
-        }
-
-        //wings: 1
-        //TODO: currently doesn't work on both wings because a) wing_mod affects both of them, and b) i forget the other reason but this is a monday problem methinks
-        foreach (GameObject bone in wing_bones) {
-            float w = Mathf.Min(Vector3.Distance(bone.transform.position, contactTarget.transform.position), part_lengths[1]) / part_lengths[1];
-            w += Mathf.Min(Vector3.Distance(bone.transform.GetChild(0).transform.position, contactTarget.transform.position), part_lengths[1]) / part_lengths[1];
-            w /= 2.0f;
-            //bone.transform.localScale = new Vector3(w, w, w);
-            wing_mod = Mathf.Lerp(30.0f, -30.0f, w);
+        //NOTE. these are not supposed to be hardcoded rn but im sick of adding variables
+        wing_mod_R = Mathf.Lerp(30.0f, -30.0f, smallest_w_R);
+        wing_mod_L = Mathf.Lerp(30.0f, -30.0f, smallest_w_L);
+        if (smallest_w_R < 0.8f || smallest_w_L < 0.8f) {
+            wing_speed /= 2.0f;
+            wing_t = 0.0f;
         }
 
-        //horns: 2
-        foreach (GameObject bone in horn_bones) {
-            float h = Mathf.Min(Vector3.Distance(bone.transform.position, contactTarget.transform.position), part_lengths[2]) / part_lengths[2];
-            h += Mathf.Min(Vector3.Distance(bone.transform.GetChild(0).transform.position, contactTarget.transform.position), part_lengths[2]) / part_lengths[2];
-            h /= 2.0f;
-
-            h = Mathf.Lerp(-1.0f, 1.0f, h);
-            bone.transform.localScale = new Vector3(1, h, 1);
-            //bone.transform.localEulerAngles = new Vector3(300 + h * 90.0f, 300 + h * 90.0f, bone.transform.localEulerAngles.z);
+        for(int i = 0; i < horn_bones.Count; i++) {
+            horn_bones[i].transform.localScale = (i == 0) ? new Vector3(1, smallest_h_R, 1) : new Vector3(1, smallest_h_L, 1);
         }
+
+        
     }
 }
